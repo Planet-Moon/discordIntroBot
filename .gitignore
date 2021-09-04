@@ -1,0 +1,5 @@
+.env
+__pycache__
+intro_links.json
+*.mpeg
+*.m4a
