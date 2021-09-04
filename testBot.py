@@ -24,7 +24,8 @@ class SillyBot(commands.Bot):
         if message.author == self.user:
             return
         if message.content.startswith('$hello') or True:
-            await message.channel.send("echo: {}".format(message.content))
+            # await message.channel.send("echo: {}".format(message.content))
+            pass
         print(str(message.content))
         if message.content == 'raise-exception':
             raise discord.DiscordException
@@ -108,9 +109,15 @@ class SillyBot(commands.Bot):
             await ctx.send(str(latency)+" ms")
 
         @self.command(name="link_intro",help="Link intro to joining voice channels", pass_context=True)
-        async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
+        async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:float=10, volume:float=0.15):
             self.intro_dict[str(ctx.author)] = {"intro_link": intro_link, "time_start": time_start, "intro_length": intro_length,"volume":volume}
             print("link_intro")
+            json_tools.dump_into_file("intro_links.json",self.intro_dict)
+
+        @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
+        async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
+            self.intro_dict[str(ctx.author)] = None
+            print("delete intro")
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
 
 
