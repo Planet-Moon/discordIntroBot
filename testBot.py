@@ -47,7 +47,7 @@ class SillyBot(commands.Bot):
         joined_user = self.intro_dict.get(str(user),None)
         if joined_user:
             print("play intro song for "+str(user))
-            if stateNew.channel:
+            if stateNew.channel and not stateOld.channel:
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
