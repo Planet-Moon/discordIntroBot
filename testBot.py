@@ -20,7 +20,6 @@ class SillyBot(commands.Bot):
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
-        self.add_cog(ytdl.Music(self))
         self.run(TOKEN)
 
 
