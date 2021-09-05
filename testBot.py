@@ -9,6 +9,10 @@ import ytdl
 import time
 import threading
 import json_tools
+import logging
+
+logging.basicConfig(level=logging.INFO,format='{levelname:s} {asctime:s} {module:s} {process:d} {thread:d} {filename:s} {lineno:d} {message:s}')
+logger = logging.getLogger(__name__)
 
 class SillyBot(commands.Bot):
     def __init__(self,TOKEN,GUILD="",command_prefix="!",self_bot=False):
@@ -26,16 +30,14 @@ class SillyBot(commands.Bot):
         if message.content.startswith('$hello') or True:
             # await message.channel.send("echo: {}".format(message.content))
             pass
-        print(str(message.content))
+        logger.info(str(message.content))
         if message.content == 'raise-exception':
             raise discord.DiscordException
         await self.process_commands(message)
 
 
     async def on_ready(self):
-        print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print('------')
-
+        logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
 
     async def on_member_join(member):
         await member.create_dm()
@@ -47,14 +49,14 @@ class SillyBot(commands.Bot):
     async def on_voice_state_update(self, user, stateOld, stateNew):
         joined_user = self.intro_dict.get(str(user),None)
         if joined_user:
-            print("play intro song for "+str(user))
+            logger.info("play intro song for "+str(user))
             if stateNew.channel and not stateOld.channel:
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
                 player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=True,timestamp=joined_user["time_start"])
                 player.volume = joined_user["volume"]
-                voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+                voice_client.play(player, after=lambda e: logger.error(f'Player error: {e}') if e else None)
 
                 async def disconnect_vc(vc,sleep_time):
                     time.sleep(sleep_time)
@@ -67,9 +69,9 @@ class SillyBot(commands.Bot):
 
     async def on_command_error(self, error, *args, **kwargs):
         for i in args:
-            print(str(i))
+            logger.error(str(i))
         for key, value in kwargs:
-            print(key+": "+value)
+            logger.error(key+": "+value)
         if isinstance(error, commands.errors.CheckFailure):
             await self.send('You do not have the correct role for this command.')
 
@@ -81,7 +83,7 @@ class SillyBot(commands.Bot):
             guild = ctx.guild
             existing_channel = discord.utils.get(guild.channels, name=channel_name)
             if not existing_channel:
-                print(f'Creating a new channel: {channel_name}')
+                logger.info(f'Creating a new channel: {channel_name}')
                 await guild.create_text_channel(channel_name)
 
         @self.command(name='roll_dice', help='Simulates rolling dice.', pass_context=True)
@@ -111,13 +113,13 @@ class SillyBot(commands.Bot):
         @self.command(name="link_intro",help="Link intro to joining voice channels", pass_context=True)
         async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:float=10, volume:float=0.15):
             self.intro_dict[str(ctx.author)] = {"intro_link": intro_link, "time_start": time_start, "intro_length": intro_length,"volume":volume}
-            print("link_intro")
+            logger.info("link_intro")
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
 
         @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
         async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
             self.intro_dict[str(ctx.author)] = None
-            print("delete intro")
+            logger.info("delete intro")
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
 
 
