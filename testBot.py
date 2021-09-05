@@ -11,7 +11,7 @@ import threading
 import json_tools
 import logging
 
-logging.basicConfig(level=logging.INFO,format='{levelname:s} {asctime:s} {module:s} {process:d} {thread:d} {filename:s} {lineno:d} {message:s}')
+logging.basicConfig(level=logging.INFO,format='%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(filename)s %(lineno)d %(message)s')
 logger = logging.getLogger(__name__)
 
 class SillyBot(commands.Bot):
@@ -30,7 +30,7 @@ class SillyBot(commands.Bot):
         if message.content.startswith('$hello') or True:
             # await message.channel.send("echo: {}".format(message.content))
             pass
-        logger.info(str(message.content))
+        logger.info(str(message.author)+": "+str(message.content))
         if message.content == 'raise-exception':
             raise discord.DiscordException
         await self.process_commands(message)
