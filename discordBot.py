@@ -90,7 +90,7 @@ class SillyBot(commands.Bot):
                     vc.stop()
                     await vc.disconnect()
 
-                await disconnect_vc(vc=voice_client,sleep_time=joined_user["intro_length"])
+                await disconnect_vc(vc=voice_client,sleep_time=joined_user["intro_length"]*1.1)
 
             return
 
