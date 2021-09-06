@@ -10,6 +10,7 @@ import time
 import threading
 import json_tools
 import logging
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO,format='%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(filename)s %(lineno)d %(message)s')
 logger = logging.getLogger(__name__)
@@ -20,17 +21,30 @@ class SillyBot(commands.Bot):
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
-        self.use_cache = False
+        self.use_cache = True
+        self.cache_dir = Path("./cache")
         self.run(TOKEN)
 
 
     async def cache_audio_files(self,intro_dict):
+        self.cache_dir.mkdir(exist_ok=True)
         for user, data in intro_dict.items():
-            await ytdl.YTDLSource.from_url(
-                data["intro_link"],
-                stream=False,
-                timestamp=data["time_start"],
-                duration=data["intro_length"])
+            await self.cache_audio_file(
+                    intro_link=data["intro_link"],
+                    time_start=data["time_start"],
+                    intro_length=data["intro_length"],
+                )
+            logger.info("Cached intro for user: "+user)
+
+    async def cache_audio_file(self,**kwargs):
+        await ytdl.YTDLSource.from_url(
+            kwargs["intro_link"],
+            stream=False,
+            timestamp=kwargs["time_start"],
+            duration=kwargs["intro_length"],
+            setup_cache=True,
+            cache_dir = self.cache_dir,
+            )
 
 
     async def on_message(self, message):
@@ -50,6 +64,7 @@ class SillyBot(commands.Bot):
             await self.cache_audio_files(self.intro_dict)
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
 
+
     async def on_member_join(member):
         await member.create_dm()
         await member.dm_channel.send(
@@ -65,7 +80,7 @@ class SillyBot(commands.Bot):
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
-                player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=not self.use_cache,timestamp=joined_user["time_start"])
+                player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=not self.use_cache,timestamp=joined_user["time_start"],cache_dir=self.cache_dir)
                 player.volume = joined_user["volume"]
 
                 voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
@@ -87,6 +102,14 @@ class SillyBot(commands.Bot):
             logger.error(key+": "+value)
         if isinstance(error, commands.errors.CheckFailure):
             await self.send('You do not have the correct role for this command.')
+
+
+    async def delete_old_intro_cache(self,**kwargs):
+        try:
+            cachefile = self.cache_dir.joinpath(ytdl.ytdl.prepare_filename(ytdl.ytdl.extract_info(kwargs["intro_link"], download=False)))
+            cachefile.unlink()
+        except FileNotFoundError:
+            pass
 
 
     def add_commands(self):
@@ -123,20 +146,30 @@ class SillyBot(commands.Bot):
             latency = int(self.latency*1000)
             await ctx.send(str(latency)+" ms")
 
+
         @self.command(name="link_intro",help="Link intro to joining voice channels", pass_context=True)
-        async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:float=10, volume:float=0.15):
+        async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:float=0, intro_length:float=10, volume:float=0.15):
             self.intro_dict[str(ctx.author)] = {"intro_link": intro_link, "time_start": time_start, "intro_length": intro_length,"volume":volume}
-            logger.info("link_intro")
+
+            if self.use_cache:
+                intro_entry = self.intro_dict.get(str(ctx.author),None)
+                if intro_entry:
+                    await self.delete_old_intro_cache(intro_link=intro_entry["intro_link"])
+                await self.cache_audio_file(intro_link=intro_link, time_start=time_start, intro_length=intro_length)
+                logger.info("Cached new intro")
+
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
+            await ctx.send("Intro ready!")
+
 
         @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
         async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
-            self.intro_dict[str(ctx.author)] = None
-            logger.info("delete intro")
-            json_tools.dump_into_file("intro_links.json",self.intro_dict)
-
-
-
+            intro_entry = self.intro_dict.get(str(ctx.author),None)
+            if intro_entry:
+                await self.delete_old_intro_cache(intro_link=intro_entry["intro_link"])
+                self.intro_dict[str(ctx.author)] = None
+                json_tools.dump_into_file("intro_links.json",self.intro_dict)
+                logger.info("delete intro")
 
 
 def main():

@@ -1,7 +1,10 @@
 import asyncio
+import os
 
 import discord
 import youtube_dl
+
+from pathlib import Path
 
 from discord.ext import commands
 
@@ -40,17 +43,25 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.url = data.get('url')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False, timestamp:int=0):
-        ffmpeg_options['options'] += " -ss "+str(timestamp)
+    async def from_url(cls, url, *, loop=None, stream=False, timestamp:float=0, duration:float=10, setup_cache:bool=False,cache_dir:Path=Path.cwd()):
+        _ffmpeg_options = {
+            'before_options': " -ss "+str(timestamp),
+            'options': ffmpeg_options['options'] +" -t "+str(duration),
+        }
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream and False))
+
+        if not stream and setup_cache:
+            os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(timestamp,data['url'],duration,cache_dir.joinpath(ytdl.prepare_filename(data))))
+            return
 
         if 'entries' in data:
             # take first item from a playlist
             data = data['entries'][0]
 
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        filename = data['url'] if stream else str(cache_dir.joinpath(ytdl.prepare_filename(data)))
+        _ffmpeg_options = {}
+        return cls(discord.FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
 
 
 class Music(commands.Cog):
