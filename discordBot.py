@@ -85,12 +85,13 @@ class SillyBot(commands.Bot):
 
                 voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
 
-                async def disconnect_vc(vc,sleep_time):
-                    time.sleep(sleep_time)
+                async def disconnect_vc(vc):
+                    while vc.is_playing():
+                        time.sleep(0.05)
                     vc.stop()
                     await vc.disconnect()
 
-                await disconnect_vc(vc=voice_client,sleep_time=joined_user["intro_length"]*1.1)
+                await disconnect_vc(vc=voice_client)
 
             return
 
