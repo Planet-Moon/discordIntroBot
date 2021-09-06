@@ -20,7 +20,17 @@ class SillyBot(commands.Bot):
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
+        self.use_cache = False
         self.run(TOKEN)
+
+
+    async def cache_audio_files(self,intro_dict):
+        for user, data in intro_dict.items():
+            await ytdl.YTDLSource.from_url(
+                data["intro_link"],
+                stream=False,
+                timestamp=data["time_start"],
+                duration=data["intro_length"])
 
 
     async def on_message(self, message):
@@ -36,6 +46,8 @@ class SillyBot(commands.Bot):
 
 
     async def on_ready(self):
+        if self.use_cache:
+            await self.cache_audio_files(self.intro_dict)
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
 
     async def on_member_join(member):
@@ -53,12 +65,14 @@ class SillyBot(commands.Bot):
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
-                player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=True,timestamp=joined_user["time_start"])
+                player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=not self.use_cache,timestamp=joined_user["time_start"])
                 player.volume = joined_user["volume"]
-                voice_client.play(player, after=lambda e: logger.error(f'Player error: {e}') if e else None)
+
+                voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
 
                 async def disconnect_vc(vc,sleep_time):
                     time.sleep(sleep_time)
+                    vc.stop()
                     await vc.disconnect()
 
                 await disconnect_vc(vc=voice_client,sleep_time=joined_user["intro_length"])
