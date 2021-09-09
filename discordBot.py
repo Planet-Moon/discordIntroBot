@@ -23,7 +23,7 @@ class SillyBot(commands.Bot):
         self.intro_dict = json_tools.read_from_file("intro_links.json")
         self.use_cache = True
         self.cache_dir = Path("./cache")
-        self.intro_manager = ytdl.IntroManager()
+        self.intro_manager = ytdl.IntroManager(self.cache_dir)
         self.run(TOKEN)
 
 
@@ -44,8 +44,7 @@ class SillyBot(commands.Bot):
             user=kwargs["user"],
             url=kwargs["intro_link"],
             timestamp=kwargs["time_start"],
-            duration=kwargs["intro_length"],
-            cache_dir=self.cache_dir)
+            duration=kwargs["intro_length"])
 
 
     async def on_message(self, message):
@@ -105,15 +104,6 @@ class SillyBot(commands.Bot):
         if isinstance(error, commands.errors.CheckFailure):
             await self.send('You do not have the correct role for this command.')
 
-
-    async def delete_old_intro_cache(self,**kwargs):
-        try:
-            cachefile = self.cache_dir.joinpath(ytdl.ytdl.prepare_filename(ytdl.ytdl.extract_info(kwargs["intro_link"], download=False)))
-            cachefile.unlink()
-        except FileNotFoundError:
-            pass
-
-
     def add_commands(self):
         @self.command(name='create_channel', pass_context=True)
         @commands.has_role('admin')
@@ -156,8 +146,14 @@ class SillyBot(commands.Bot):
             if self.use_cache:
                 intro_entry = self.intro_dict.get(str(ctx.author),None)
                 if intro_entry:
-                    await self.delete_old_intro_cache(intro_link=intro_entry["intro_link"])
-                await self.cache_audio_file(intro_link=intro_link, time_start=time_start, intro_length=intro_length)
+                    await self.intro_manager.delete_intro(str(ctx.author))
+
+                await self.intro_manager.cache_intro(
+                        user=str(ctx.author),
+                        url=intro_link,
+                        volume=volume,
+                        timestamp=time_start,
+                        duration=intro_length)
                 logger.info("Cached new intro")
 
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
@@ -168,7 +164,7 @@ class SillyBot(commands.Bot):
         async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
             intro_entry = self.intro_dict.get(str(ctx.author),None)
             if intro_entry:
-                await self.delete_old_intro_cache(intro_link=intro_entry["intro_link"])
+                await self.intro_manager.delete_intro(str(ctx.author))
                 self.intro_dict[str(ctx.author)] = None
                 json_tools.dump_into_file("intro_links.json",self.intro_dict)
                 logger.info("delete intro")

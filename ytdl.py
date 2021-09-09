@@ -64,10 +64,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return cls(discord.FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
 
 class IntroManager:
-    def __init__(self):
+    def __init__(self, cache_dir:Path=Path.cwd()):
+        self.cache_dir = cache_dir
         self.intro_map = dict() # keys: user, value: file, volume
 
-    async def cache_intro(self, user:str, url, *, volume:float=0.15, timestamp:float=0, duration:float=10, cache_dir:Path=Path.cwd()):
+    async def cache_intro(self, user:str, url, *, volume:float=0.15, timestamp:float=0, duration:float=10):
         _ffmpeg_options = {
             'before_options': " -ss "+str(timestamp),
             'options': ffmpeg_options['options'] +" -t "+str(duration),
@@ -76,7 +77,7 @@ class IntroManager:
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
 
-        filename = cache_dir.joinpath(user+"_"+ytdl.prepare_filename(data))
+        filename = self.cache_dir.joinpath(user+"_"+ytdl.prepare_filename(data))
 
         os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(timestamp,data['url'],duration,filename))
 
@@ -86,6 +87,13 @@ class IntroManager:
         filename = self.intro_map[user].get("file")
         volume = self.intro_map[user].get("volume")
         return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)),volume)
+
+    async def delete_intro(self, user:str):
+        cachefile = self.intro_map[user].get("file")
+        try:
+            cachefile.unlink()
+        except FileNotFoundError:
+            pass
 
 
 class Music(commands.Cog):
