@@ -23,6 +23,7 @@ class SillyBot(commands.Bot):
         self.intro_dict = json_tools.read_from_file("intro_links.json")
         self.use_cache = True
         self.cache_dir = Path("./cache")
+        self.intro_manager = ytdl.IntroManager()
         self.run(TOKEN)
 
 
@@ -30,21 +31,21 @@ class SillyBot(commands.Bot):
         self.cache_dir.mkdir(exist_ok=True)
         for user, data in intro_dict.items():
             await self.cache_audio_file(
+                    user=user,
                     intro_link=data["intro_link"],
                     time_start=data["time_start"],
                     intro_length=data["intro_length"],
                 )
             logger.info("Cached intro for user: "+user)
 
+
     async def cache_audio_file(self,**kwargs):
-        await ytdl.YTDLSource.from_url(
-            kwargs["intro_link"],
-            stream=False,
+        await self.intro_manager.cache_intro(
+            user=kwargs["user"],
+            url=kwargs["intro_link"],
             timestamp=kwargs["time_start"],
             duration=kwargs["intro_length"],
-            setup_cache=True,
-            cache_dir = self.cache_dir,
-            )
+            cache_dir=self.cache_dir)
 
 
     async def on_message(self, message):
@@ -80,7 +81,7 @@ class SillyBot(commands.Bot):
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
-                player = await ytdl.YTDLSource.from_url(joined_user["intro_link"],stream=not self.use_cache,timestamp=joined_user["time_start"],cache_dir=self.cache_dir)
+                player = await self.intro_manager.get_intro_from_cache(str(user))
                 player.volume = joined_user["volume"]
 
                 voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)

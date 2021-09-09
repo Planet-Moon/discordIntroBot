@@ -63,6 +63,30 @@ class YTDLSource(discord.PCMVolumeTransformer):
         _ffmpeg_options = {}
         return cls(discord.FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
 
+class IntroManager:
+    def __init__(self):
+        self.intro_map = dict() # keys: user, value: file, volume
+
+    async def cache_intro(self, user:str, url, *, volume:float=0.15, timestamp:float=0, duration:float=10, cache_dir:Path=Path.cwd()):
+        _ffmpeg_options = {
+            'before_options': " -ss "+str(timestamp),
+            'options': ffmpeg_options['options'] +" -t "+str(duration),
+        }
+        loop=None
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+
+        filename = cache_dir.joinpath(user+"_"+ytdl.prepare_filename(data))
+
+        os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(timestamp,data['url'],duration,filename))
+
+        self.intro_map[user] = {"file":filename,"volume":volume}
+
+    async def get_intro_from_cache(self, user:str) -> discord.PCMVolumeTransformer:
+        filename = self.intro_map[user].get("file")
+        volume = self.intro_map[user].get("volume")
+        return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)),volume)
+
 
 class Music(commands.Cog):
     def __init__(self, bot):
