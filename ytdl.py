@@ -90,11 +90,12 @@ class IntroManager:
         return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)),volume)
 
     async def delete_intro(self, user:str):
-        cachefile = self.intro_map[user].get("file")
-        try:
-            cachefile.unlink()
-        except FileNotFoundError:
-            pass
+        user = self.intro_map.get(user,None)
+        if user:
+            try:
+                user.get("file").unlink()
+            except FileNotFoundError:
+                pass
 
 
 class Music(commands.Cog):
