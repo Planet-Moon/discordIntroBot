@@ -161,6 +161,36 @@ class SillyBot(commands.Bot):
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
             await ctx.send("Intro ready!")
 
+        @self.command(name="link_channel_intro",help="Link intro joining a specific voice channels for all users", pass_context=True)
+        async def link_channel_intro(ctx, channel_id:int, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:float=0, intro_length:float=10, volume:float=0.15):
+            channel = channel = discord.utils.get(ctx.guild.channels, id=channel_id)
+            self.intro_dict[str(channel_id)] = {
+                "guild": {
+                    "id": ctx.guild.id,
+                    "name": ctx.guild.name
+                },
+                "channel_name": channel.name,
+                "intro_link": intro_link,
+                "time_start": time_start,
+                "intro_length": intro_length,
+                "volume": volume
+            }
+
+            if self.use_cache:
+                intro_entry = self.intro_dict.get(str(channel_id),None)
+                if intro_entry:
+                    await self.intro_manager.delete_intro(str(channel_id))
+
+                await self.intro_manager.cache_intro(
+                        user=str(channel_id),
+                        url=intro_link,
+                        volume=volume,
+                        timestamp=time_start,
+                        duration=intro_length)
+                logger.info("Cached new intro")
+
+            json_tools.dump_into_file("intro_links.json",self.intro_dict)
+            await ctx.send("Intro ready!")
 
         @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
         async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
