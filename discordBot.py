@@ -75,16 +75,15 @@ class SillyBot(commands.Bot):
 
 
     async def on_voice_state_update(self, user, stateOld, stateNew):
-        joined_user = self.intro_dict.get(str(user),None)
-        joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
-        if joined_user or joined_channel:
-            if stateNew.channel and not stateOld.channel:
-                await stateNew.channel.connect()
-                voice_client = self.voice_clients[-1]
+        if stateNew.channel and not stateOld.channel and not user.bot:
+            joined_user = self.intro_dict.get(str(user),None)
+            joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
+            joined_channel_id = str(stateNew.channel.id)
+            if joined_user or joined_channel:
 
                 if joined_channel:
                     logger.info("play intro song for channel "+joined_channel["channel_name"]+" of guild "+joined_channel["guild"]["name"])
-                    player = await self.intro_manager.get_intro_from_cache(str(stateNew.channel.id))
+                    player = await self.intro_manager.get_intro_from_cache(joined_channel_id)
                     player.volume = joined_channel["volume"]
 
                 elif joined_user:
@@ -95,17 +94,14 @@ class SillyBot(commands.Bot):
                 else:
                     return
 
+                await stateNew.channel.connect()
+                voice_client = self.voice_clients[-1]
                 voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
 
-                async def disconnect_vc(vc):
-                    while vc.is_playing():
-                        time.sleep(0.05)
-                    vc.stop()
-                    await vc.disconnect()
-
-                await disconnect_vc(vc=voice_client)
-
-            return
+                while voice_client.is_playing():
+                    time.sleep(0.05)
+                voice_client.stop()
+                await voice_client.disconnect()
 
 
     async def on_command_error(self, error, *args, **kwargs):
