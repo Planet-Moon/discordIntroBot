@@ -80,6 +80,11 @@ class IntroManager:
         filename = self.cache_dir.joinpath(f"{user}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
 
         if not filename.exists():
+            # remove duplicates possible lying around from this user
+            duplicates = self.cache_dir.glob(f"{user}_t*.m4a")
+            for i in duplicates:
+                i.unlink()
+
             os.system(f"ffmpeg -hide_banner -loglevel error -y -ss {timestamp} -i \"{data.get('url')}\" -vn -t {duration} -c copy {filename}")
 
         self.intro_map[user] = {"file":filename,"volume":volume}
