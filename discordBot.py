@@ -66,6 +66,8 @@ class SillyBot(commands.Bot):
 
 
     async def on_member_join(member):
+        logger.info(f'Member {member.id} joined')
+        return
         await member.create_dm()
         await member.dm_channel.send(
             f'Hi {member.name}, welcome to my Discord server!'
