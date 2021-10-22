@@ -76,14 +76,24 @@ class SillyBot(commands.Bot):
 
     async def on_voice_state_update(self, user, stateOld, stateNew):
         joined_user = self.intro_dict.get(str(user),None)
-        if joined_user:
-            logger.info("play intro song for "+str(user))
+        joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
+        if joined_user or joined_channel:
             if stateNew.channel and not stateOld.channel:
                 await stateNew.channel.connect()
                 voice_client = self.voice_clients[-1]
 
-                player = await self.intro_manager.get_intro_from_cache(str(user))
-                player.volume = joined_user["volume"]
+                if joined_channel:
+                    logger.info("play intro song for channel "+joined_channel["channel_name"]+" of guild "+joined_channel["guild"]["name"])
+                    player = await self.intro_manager.get_intro_from_cache(str(stateNew.channel.id))
+                    player.volume = joined_channel["volume"]
+
+                elif joined_user:
+                    logger.info("play intro song for user "+str(user))
+                    player = await self.intro_manager.get_intro_from_cache(str(user))
+                    player.volume = joined_user["volume"]
+
+                else:
+                    return
 
                 voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
 
