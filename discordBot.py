@@ -75,7 +75,7 @@ class SillyBot(commands.Bot):
 
 
     async def on_voice_state_update(self, user, stateOld, stateNew):
-        if stateNew.channel and not stateOld.channel and not user.bot:
+        if stateNew.channel.id is not stateOld.channel.id and not user.bot:
             joined_user = self.intro_dict.get(str(user),None)
             joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
             joined_channel_id = str(stateNew.channel.id)
