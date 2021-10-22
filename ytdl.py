@@ -77,9 +77,10 @@ class IntroManager:
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
 
-        filename = self.cache_dir.joinpath(user+"_"+ytdl.prepare_filename(data))
+        filename = self.cache_dir.joinpath(f"{user}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
 
-        os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(timestamp,data['url'],duration,filename))
+        if not filename.exists():
+            os.system(f"ffmpeg -hide_banner -loglevel error -y -ss {timestamp} -i \"{data.get('url')}\" -vn -t {duration} -c copy {filename}")
 
         self.intro_map[user] = {"file":filename,"volume":volume}
 
