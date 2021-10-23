@@ -78,6 +78,9 @@ class SillyBot(commands.Bot):
         if user.bot or not stateNew.channel: # bot or disconnect
             return
 
+        joined_user = None
+        joined_channel = None
+
         if not stateOld.channel: # join channel
             joined_user = self.intro_dict.get(str(user),None)
             joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
