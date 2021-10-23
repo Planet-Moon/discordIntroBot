@@ -75,33 +75,41 @@ class SillyBot(commands.Bot):
 
 
     async def on_voice_state_update(self, user, stateOld, stateNew):
-        if stateNew.channel.id is not stateOld.channel.id and not user.bot:
+        if user.bot or not stateNew.channel: # bot or disconnect
+            return
+
+        if not stateOld.channel: # join channel
             joined_user = self.intro_dict.get(str(user),None)
             joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
             joined_channel_id = str(stateNew.channel.id)
-            if joined_user or joined_channel:
+        elif stateNew.channel.id is not stateOld.channel.id: # move channels
+            joined_user = None
+            joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
+            joined_channel_id = str(stateNew.channel.id)
 
-                if joined_channel:
-                    logger.info("play intro song for channel "+joined_channel["channel_name"]+" of guild "+joined_channel["guild"]["name"])
-                    player = await self.intro_manager.get_intro_from_cache(joined_channel_id)
-                    player.volume = joined_channel["volume"]
+        if joined_user or joined_channel:
 
-                elif joined_user:
-                    logger.info("play intro song for user "+str(user))
-                    player = await self.intro_manager.get_intro_from_cache(str(user))
-                    player.volume = joined_user["volume"]
+            if joined_channel:
+                logger.info("play intro song for channel "+joined_channel["channel_name"]+" of guild "+joined_channel["guild"]["name"])
+                player = await self.intro_manager.get_intro_from_cache(joined_channel_id)
+                player.volume = joined_channel["volume"]
 
-                else:
-                    return
+            elif joined_user:
+                logger.info("play intro song for user "+str(user))
+                player = await self.intro_manager.get_intro_from_cache(str(user))
+                player.volume = joined_user["volume"]
 
-                await stateNew.channel.connect()
-                voice_client = self.voice_clients[-1]
-                voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+            else:
+                return
 
-                while voice_client.is_playing():
-                    time.sleep(0.05)
-                voice_client.stop()
-                await voice_client.disconnect()
+            await stateNew.channel.connect()
+            voice_client = self.voice_clients[-1]
+            voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+
+            while voice_client.is_playing():
+                time.sleep(0.05)
+            voice_client.stop()
+            await voice_client.disconnect()
 
 
     async def on_command_error(self, error, *args, **kwargs):
