@@ -68,7 +68,12 @@ class IntroManager:
         self.cache_dir = cache_dir
         self.intro_map = dict() # keys: user, value: file, volume
 
+    @staticmethod
+    def parse_user_name(user_name:str):
+        return user_name.replace('/','_')
+
     async def cache_intro(self, user:str, url, *, volume:float=0.15, timestamp:float=0, duration:float=10):
+        user_name = self.parse_user_name(user)
         _ffmpeg_options = {
             'before_options': " -ss "+str(timestamp),
             'options': ffmpeg_options['options'] +" -t "+str(duration),
@@ -77,28 +82,30 @@ class IntroManager:
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
 
-        filename = self.cache_dir.joinpath(f"{user}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
+        filename = self.cache_dir.joinpath(f"{user_name}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
 
         if not filename.exists():
             # remove duplicates possible lying around from this user
-            duplicates = self.cache_dir.glob(f"{user}_t*.m4a")
+            duplicates = self.cache_dir.glob(f"{user_name}_t*.m4a")
             for i in duplicates:
                 i.unlink()
 
             os.system(f"ffmpeg -hide_banner -loglevel error -y -ss {timestamp} -i \"{data.get('url')}\" -vn -t {duration} -c copy {filename}")
 
-        self.intro_map[user] = {"file":filename,"volume":volume}
+        self.intro_map[user_name] = {"file":filename,"volume":volume}
 
     async def get_intro_from_cache(self, user:str) -> discord.PCMVolumeTransformer:
-        filename = self.intro_map[user].get("file")
-        volume = self.intro_map[user].get("volume")
+        user_name = self.parse_user_name(user)
+        filename = self.intro_map[user_name].get("file")
+        volume = self.intro_map[user_name].get("volume")
         return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)),volume)
 
     async def delete_intro(self, user:str):
-        user = self.intro_map.get(user,None)
-        if user:
+        user_name = self.parse_user_name(user)
+        user_name_entry = self.intro_map.get(user_name,None)
+        if user_name_entry:
             try:
-                user.get("file").unlink()
+                user_name_entry.get("file").unlink()
             except FileNotFoundError:
                 pass
 

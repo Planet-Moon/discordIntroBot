@@ -81,8 +81,9 @@ class SillyBot(commands.Bot):
         joined_user = None
         joined_channel = None
 
+        user_name = str(user)
         if not stateOld.channel: # join channel
-            joined_user = self.intro_dict.get(str(user),None)
+            joined_user = self.intro_dict.get(user_name,None)
             joined_channel = self.intro_dict.get(str(stateNew.channel.id),None)
             joined_channel_id = str(stateNew.channel.id)
         elif stateNew.channel.id is not stateOld.channel.id: # move channels
@@ -98,8 +99,8 @@ class SillyBot(commands.Bot):
                 player.volume = joined_channel["volume"]
 
             elif joined_user:
-                logger.info("play intro song for user "+str(user))
-                player = await self.intro_manager.get_intro_from_cache(str(user))
+                logger.info("play intro song for user "+user_name)
+                player = await self.intro_manager.get_intro_from_cache(user_name)
                 player.volume = joined_user["volume"]
 
             else:
@@ -160,15 +161,16 @@ class SillyBot(commands.Bot):
 
         @self.command(name="link_intro",help="Link intro to joining voice channels", pass_context=True)
         async def link_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:float=0, intro_length:float=10, volume:float=0.15):
-            self.intro_dict[str(ctx.author)] = {"intro_link": intro_link, "time_start": time_start, "intro_length": intro_length,"volume":volume}
+            author_name = str(ctx.author)
+            self.intro_dict[author_name] = {"intro_link": intro_link, "time_start": time_start, "intro_length": intro_length,"volume":volume}
 
             if self.use_cache:
-                intro_entry = self.intro_dict.get(str(ctx.author),None)
+                intro_entry = self.intro_dict.get(author_name,None)
                 if intro_entry:
-                    await self.intro_manager.delete_intro(str(ctx.author))
+                    await self.intro_manager.delete_intro(author_name)
 
                 await self.intro_manager.cache_intro(
-                        user=str(ctx.author),
+                        user=author_name,
                         url=intro_link,
                         volume=volume,
                         timestamp=time_start,
