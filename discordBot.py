@@ -182,6 +182,7 @@ class SillyBot(commands.Bot):
 
         @self.command(name="link_channel_intro",help="Link intro joining a specific voice channels for all users", pass_context=True)
         async def link_channel_intro(ctx, channel_id:int, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:float=0, intro_length:float=10, volume:float=0.15):
+            intro_length = min(20, intro_length)
             channel = channel = discord.utils.get(ctx.guild.channels, id=channel_id)
             self.intro_dict[str(channel_id)] = {
                 "guild": {
@@ -212,7 +213,7 @@ class SillyBot(commands.Bot):
             await ctx.send("Intro ready!")
 
         @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
-        async def delete_intro(ctx, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:int=0, intro_length:int=10, volume:float=0.15):
+        async def delete_intro(ctx):
             intro_entry = self.intro_dict.get(str(ctx.author),None)
             if intro_entry:
                 await self.intro_manager.delete_intro(str(ctx.author))
