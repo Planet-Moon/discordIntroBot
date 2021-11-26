@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 class SillyBot(commands.Bot):
     def __init__(self,TOKEN,GUILD="",command_prefix="!",self_bot=False):
         commands.Bot.__init__(self,command_prefix=command_prefix,self_bot=self_bot)
+        self.add_cog(ytdl.Music(self))
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
@@ -74,7 +75,7 @@ class SillyBot(commands.Bot):
         )
 
 
-    async def on_voice_state_update(self, user, stateOld, stateNew):
+    async def on_voice_state_update(self, user:discord.member.Member, stateOld:discord.channel.VoiceChannel, stateNew:discord.channel.VoiceChannel):
         if user.bot or not stateNew.channel: # bot or disconnect
             return
 
