@@ -2,7 +2,7 @@
 
 A discord bot to play some music from youtube when a user joins a voice channel.
 
-command to register mucic for yourself:
+command to register music for yourself:
 
 ```
 !link_intro <yt-link> [start-timestamp=0] [duration=10] [volume=15%]
