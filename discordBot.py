@@ -32,9 +32,9 @@ class SillyBot(commands.Bot):
         self.intro_manager = ytdl.IntroManager(self.cache_dir)
         self.run(TOKEN)
 
-    def check_blacklisted(self, user:str):
-        blacklisted_users:list[str] = self.administration.get("blacklist",None)
-        if str(user) in blacklisted_users:
+    def check_blocklisted(self, user:str):
+        blocklisted_users:list[str] = self.administration.get("blocklist",None)
+        if str(user) in blocklisted_users:
             return True
         return False
 
@@ -210,7 +210,7 @@ class SillyBot(commands.Bot):
                 await ctx.send("Channel not found!")
                 return
 
-            if(self.check_blacklisted(ctx.author)):
+            if(self.check_blocklisted(ctx.author)):
                 await self.notify_admins(ctx, f"{ctx.author} tried to set channel intro for {ctx.guild.name}.{channel.name} to {intro_link} {time_start} {intro_length} {volume}")
                 return
 
