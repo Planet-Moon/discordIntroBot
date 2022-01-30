@@ -52,6 +52,8 @@ class SillyBot(commands.Bot):
     async def cache_audio_files(self,intro_dict):
         self.cache_dir.mkdir(exist_ok=True)
         for user, data in intro_dict.items():
+            if not data:
+                continue
             await self.cache_audio_file(
                     user=user,
                     intro_link=data["intro_link"],
