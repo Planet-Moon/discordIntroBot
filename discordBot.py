@@ -15,7 +15,9 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO,format='%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(filename)s %(lineno)d %(message)s')
 logger = logging.getLogger(__name__)
 
-intents = discord.Intents(messages=True, guilds=True)
+intents = discord.Intents.default()
+intents.messages = True
+intents.guilds = True
 intents.reactions = True
 intents.members = True
 
