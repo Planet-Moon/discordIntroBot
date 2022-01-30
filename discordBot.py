@@ -22,6 +22,7 @@ class SillyBot(commands.Bot):
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
+        self.blacklist = json_tools.read_from_file("blacklist.json")
         self.use_cache = True
         self.cache_dir = Path("./cache")
         self.intro_manager = ytdl.IntroManager(self.cache_dir)
@@ -212,6 +213,15 @@ class SillyBot(commands.Bot):
 
             json_tools.dump_into_file("intro_links.json",self.intro_dict)
             await ctx.send("Intro ready!")
+
+        @self.command(name="delete_channel_intro",help="Delete linked channel intro", pass_context=True)
+        async def delete_channel_intro(ctx, channel_id:int):
+            intro_entry = self.intro_dict.get(str(ctx.author),None)
+            if intro_entry:
+                await self.intro_manager.delete_intro(str(channel_id))
+                self.intro_dict[str(channel_id)] = None
+                json_tools.dump_into_file("intro_links.json",self.intro_dict)
+                logger.info("deleted channel intro")
 
         @self.command(name="delete_intro",help="Delete linked intro to joining voice channels", pass_context=True)
         async def delete_intro(ctx):
