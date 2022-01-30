@@ -15,19 +15,39 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO,format='%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(filename)s %(lineno)d %(message)s')
 logger = logging.getLogger(__name__)
 
+intents = discord.Intents(messages=True, guilds=True)
+intents.reactions = True
+intents.members = True
+
 class SillyBot(commands.Bot):
-    def __init__(self,TOKEN,GUILD="",command_prefix="!",self_bot=False):
-        commands.Bot.__init__(self,command_prefix=command_prefix,self_bot=self_bot)
+    def __init__(self,TOKEN,GUILD="",command_prefix="!",self_bot=False, intents=intents):
+        commands.Bot.__init__(self,command_prefix=command_prefix,self_bot=self_bot,intents=intents)
         self.add_cog(ytdl.Music(self))
         self.GUILD = GUILD
         self.add_commands()
         self.intro_dict = json_tools.read_from_file("intro_links.json")
-        self.blacklist = json_tools.read_from_file("blacklist.json")
+        self.administration = json_tools.read_from_file("administration.json")
         self.use_cache = True
         self.cache_dir = Path("./cache")
         self.intro_manager = ytdl.IntroManager(self.cache_dir)
         self.run(TOKEN)
 
+    def check_blacklisted(self, user:str):
+        blacklisted_users:list[str] = self.administration.get("blacklist",None)
+        if str(user) in blacklisted_users:
+            return True
+        return False
+
+    async def notify_admins(self, ctx, message:str):
+        admins:list[str] = self.administration.get("admins", None)
+        guild_members:map[str,discord.Member] = dict()
+        async for member in ctx.guild.fetch_members():
+            guild_members[str(member)] = member
+        for a in admins:
+            admin_member:discord.Member = guild_members.get(a, None)
+            if admin_member:
+                await admin_member.create_dm()
+                await admin_member.dm_channel.send(message)
 
     async def cache_audio_files(self,intro_dict):
         self.cache_dir.mkdir(exist_ok=True)
@@ -186,6 +206,14 @@ class SillyBot(commands.Bot):
         async def link_channel_intro(ctx, channel_id:int, intro_link:str="https://www.youtube.com/watch?v=bluoyN8K_rA", time_start:float=0, intro_length:float=10, volume:float=0.15):
             intro_length = min(20, intro_length)
             channel = channel = discord.utils.get(ctx.guild.channels, id=channel_id)
+            if(not channel):
+                await ctx.send("Channel not found!")
+                return
+
+            if(self.check_blacklisted(ctx.author)):
+                await self.notify_admins(ctx, f"{ctx.author} tried to set channel intro for {ctx.guild.name}.{channel.name} to {intro_link} {time_start} {intro_length} {volume}")
+                return
+
             self.intro_dict[str(channel_id)] = {
                 "guild": {
                     "id": ctx.guild.id,
