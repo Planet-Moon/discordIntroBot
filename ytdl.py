@@ -23,7 +23,8 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+    # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0'
 }
 
 ffmpeg_options = {
@@ -43,46 +44,55 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.url = data.get('url')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False, timestamp:float=0, duration:float=10, setup_cache:bool=False,cache_dir:Path=Path.cwd()):
+    async def from_url(cls, url, *, loop=None, stream=False, timestamp: float = 0, duration: float = 10, setup_cache: bool = False, cache_dir: Path = Path.cwd()):
         _ffmpeg_options = {
             'before_options': " -ss "+str(timestamp),
-            'options': ffmpeg_options['options'] +" -t "+str(duration),
+            'options': ffmpeg_options['options'] + " -t "+str(duration),
         }
         loop = loop or asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream and False))
 
         if not stream and setup_cache:
-            os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(timestamp,data['url'],duration,cache_dir.joinpath(ytdl.prepare_filename(data))))
+            os.system('ffmpeg -hide_banner -loglevel error -y -ss {} -i \"{}\" -vn -t {} -c copy {}'.format(
+                timestamp, data['url'], duration, cache_dir.joinpath(ytdl.prepare_filename(data))))
             return
 
         if 'entries' in data:
             # take first item from a playlist
             data = data['entries'][0]
 
-        filename = data['url'] if stream else str(cache_dir.joinpath(ytdl.prepare_filename(data)))
+        filename = data['url'] if stream else str(
+            cache_dir.joinpath(ytdl.prepare_filename(data)))
         _ffmpeg_options = {}
         return cls(discord.FFmpegPCMAudio(filename, **_ffmpeg_options), data=data)
 
+
 class IntroManager:
-    def __init__(self, cache_dir:Path=Path.cwd()):
+    def __init__(self, cache_dir: Path = Path.cwd()):
         self.cache_dir = cache_dir
-        self.intro_map = dict() # keys: user, value: file, volume
+        self.intro_map = dict()  # keys: user, value: file, volume
 
     @staticmethod
-    def parse_user_name(user_name:str):
-        return user_name.replace('/','_')
+    def parse_user_name(user_name: str):
+        return user_name.replace('/', '_')
 
-    async def cache_intro(self, user:str, url, *, volume:float=0.15, timestamp:float=0, duration:float=10):
+    async def cache_intro(self, user: str, url, *, volume: float = 0.15, timestamp: float = 0, duration: float = 10) -> bool:
         user_name = self.parse_user_name(user)
         _ffmpeg_options = {
             'before_options': " -ss "+str(timestamp),
-            'options': ffmpeg_options['options'] +" -t "+str(duration),
+            'options': ffmpeg_options['options'] + " -t "+str(duration),
         }
-        loop=None
+        loop = None
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+        data = None
+        try:
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+        except youtube_dl.utils.DownloadError as e:
+            print(f"user: {user}, url: {url}, error: {e}")
+            return False
 
-        filename = self.cache_dir.joinpath(f"{user_name}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
+        filename = self.cache_dir.joinpath(
+            f"{user_name}_t{timestamp}_d{duration}_{ytdl.prepare_filename(data)}")
 
         if not filename.exists():
             # remove duplicates possible lying around from this user
@@ -90,19 +100,21 @@ class IntroManager:
             for i in duplicates:
                 i.unlink()
 
-            os.system(f"ffmpeg -hide_banner -loglevel error -y -ss {timestamp} -i \"{data.get('url')}\" -vn -t {duration} -c copy {filename}")
+            os.system(
+                f"ffmpeg -hide_banner -loglevel error -y -ss {timestamp} -i \"{data.get('url')}\" -vn -t {duration} -c copy {filename}")
 
-        self.intro_map[user_name] = {"file":filename,"volume":volume}
+        self.intro_map[user_name] = {"file": filename, "volume": volume}
+        return True
 
-    async def get_intro_from_cache(self, user:str) -> discord.PCMVolumeTransformer:
+    async def get_intro_from_cache(self, user: str) -> discord.PCMVolumeTransformer:
         user_name = self.parse_user_name(user)
         filename = self.intro_map[user_name].get("file")
         volume = self.intro_map[user_name].get("volume")
-        return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)),volume)
+        return discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(str(filename)), volume)
 
-    async def delete_intro(self, user:str):
+    async def delete_intro(self, user: str):
         user_name = self.parse_user_name(user)
-        user_name_entry = self.intro_map.get(user_name,None)
+        user_name_entry = self.intro_map.get(user_name, None)
         if user_name_entry:
             try:
                 user_name_entry.get("file").unlink()
@@ -128,7 +140,8 @@ class Music(commands.Cog):
         """Plays a file from the local filesystem"""
 
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(query))
-        ctx.voice_client.play(source, after=lambda e: print(f'Player error: {e}') if e else None)
+        ctx.voice_client.play(source, after=lambda e: print(
+            f'Player error: {e}') if e else None)
 
         await ctx.send(f'Now playing: {query}')
 
@@ -138,7 +151,8 @@ class Music(commands.Cog):
 
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop)
-            ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+            ctx.voice_client.play(player, after=lambda e: print(
+                f'Player error: {e}') if e else None)
 
         await ctx.send(f'Now playing: {player.title}')
 
@@ -148,7 +162,8 @@ class Music(commands.Cog):
 
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
-            ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+            ctx.voice_client.play(player, after=lambda e: print(
+                f'Player error: {e}') if e else None)
 
         await ctx.send(f'Now playing: {player.title}')
 
@@ -177,6 +192,7 @@ class Music(commands.Cog):
                 await ctx.author.voice.channel.connect()
             else:
                 await ctx.send("You are not connected to a voice channel.")
-                raise commands.CommandError("Author not connected to a voice channel.")
+                raise commands.CommandError(
+                    "Author not connected to a voice channel.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
